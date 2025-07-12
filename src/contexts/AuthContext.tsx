@@ -72,9 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(newUser);
       localStorage.setItem("skillswap-user", JSON.stringify(newUser));
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed:", error);
-      return false;
+      // Re-throw the error so components can handle specific error messages
+      throw error;
     }
   };
 

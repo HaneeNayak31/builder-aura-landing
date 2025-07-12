@@ -46,8 +46,16 @@ const Login = () => {
       } else {
         setError("Invalid email or password");
       }
-    } catch (err) {
-      setError("An error occurred during login");
+    } catch (err: any) {
+      if (err.message && err.message.includes("banned")) {
+        setError("Account has been banned. Please contact support.");
+      } else if (err.message && err.message.includes("credentials")) {
+        setError("Invalid email or password");
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError("An error occurred during login. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

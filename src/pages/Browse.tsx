@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/Layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSkillSwap } from "@/contexts/SkillSwapContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,9 +45,11 @@ import { User as UserType } from "@/types";
 
 const Browse = () => {
   const { user } = useAuth();
-  const { users, createSwapRequest } = useSkillSwap();
   const navigate = useNavigate();
 
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
@@ -58,6 +60,26 @@ const Browse = () => {
   });
   const [requestMessage, setRequestMessage] = useState("");
   const [selectedOfferedSkill, setSelectedOfferedSkill] = useState("");
+
+  // Fetch users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await api.searchUsers({});
+        setUsers(response.users || []);
+      } catch (err: any) {
+        setError("Failed to load users");
+        console.error("Error fetching users:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchUsers();
+    }
+  }, [user]);
 
   if (!user) {
     navigate("/login");
@@ -114,28 +136,61 @@ const Browse = () => {
     setSelectedOfferedSkill("");
   };
 
-  const sendSwapRequest = () => {
+  const sendSwapRequest = async () => {
     if (!swapRequestDialog.targetUser || !selectedOfferedSkill) return;
 
-    createSwapRequest({
-      fromUserId: user.id,
-      toUserId: swapRequestDialog.targetUser.id,
-      requestedSkill: swapRequestDialog.targetSkill,
-      offeredSkill: selectedOfferedSkill,
-      message: requestMessage,
-    });
+    try {
+      await api.createSwap({
+        receiver: swapRequestDialog.targetUser.id,
+        requestedSkill: swapRequestDialog.targetSkill,
+        offeredSkill: selectedOfferedSkill,
+        message: requestMessage,
+        meetingType: "online", // Default value
+      });
 
-    setSwapRequestDialog({ open: false, targetUser: null, targetSkill: "" });
-    setRequestMessage("");
-    setSelectedOfferedSkill("");
+      setSwapRequestDialog({ open: false, targetUser: null, targetSkill: "" });
+      setRequestMessage("");
+      setSelectedOfferedSkill("");
 
-    // Show success message or redirect
-    navigate("/swap-requests");
+      // Show success message or redirect
+      navigate("/swap-requests");
+    } catch (err: any) {
+      setError("Failed to send swap request. Please try again.");
+      console.error("Error creating swap:", err);
+    }
   };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-64">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+            <p className="text-gray-600">Loading users...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <p className="text-red-700">{error}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-2"
+                size="sm"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div>

@@ -64,7 +64,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const success = await register({
+      await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -73,13 +73,18 @@ const Register = () => {
         availability: formData.availability,
       });
 
-      if (success) {
-        navigate("/dashboard");
+      navigate("/dashboard");
+    } catch (err: any) {
+      // Handle specific error messages from the API
+      if (err.message && err.message.includes("email")) {
+        setError("Email already exists. Please use a different email.");
+      } else if (err.message && err.message.includes("password")) {
+        setError("Password requirements not met. Please use a stronger password.");
+      } else if (err.message) {
+        setError(err.message);
       } else {
-        setError("Email already exists");
+        setError("An error occurred during registration. Please try again.");
       }
-    } catch (err) {
-      setError("An error occurred during registration");
     } finally {
       setLoading(false);
     }

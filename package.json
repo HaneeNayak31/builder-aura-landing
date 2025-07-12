@@ -9,7 +9,8 @@
     "format.fix": "prettier --write .",
     "typecheck": "tsc",
     "dev:all": "./start-dev.sh",
-    "setup": "npm install && cd backend && npm install && cd .."
+    "setup": "npm install && cd backend && npm install && cd ..",
+    "test-connection": "node test-connection.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

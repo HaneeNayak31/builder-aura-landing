@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/Layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSkillSwap } from "@/contexts/SkillSwapContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,10 +45,11 @@ import { SwapRequest } from "@/types";
 
 const SwapRequests = () => {
   const { user } = useAuth();
-  const { swapRequests, updateSwapRequest, deleteSwapRequest, addReview } =
-    useSkillSwap();
   const navigate = useNavigate();
 
+  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [reviewDialog, setReviewDialog] = useState({
     open: false,
     swapRequest: null as SwapRequest | null,
@@ -57,6 +58,26 @@ const SwapRequests = () => {
     rating: 5,
     comment: "",
   });
+
+  // Fetch swap requests on component mount
+  useEffect(() => {
+    const fetchSwapRequests = async () => {
+      try {
+        setLoading(true);
+        const response = await api.getUserSwaps({});
+        setSwapRequests(response.swaps || []);
+      } catch (err: any) {
+        setError("Failed to load swap requests");
+        console.error("Error fetching swaps:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchSwapRequests();
+    }
+  }, [user]);
 
   if (!user) {
     navigate("/login");
@@ -83,27 +104,61 @@ const SwapRequests = () => {
     (request) => request.status === "completed",
   );
 
-  const handleAcceptRequest = (requestId: string) => {
-    updateSwapRequest(requestId, "accepted");
-  };
-
-  const handleRejectRequest = (requestId: string) => {
-    updateSwapRequest(requestId, "rejected");
-  };
-
-  const handleCompleteSwap = (requestId: string) => {
-    updateSwapRequest(requestId, "completed");
-    const request = swapRequests.find((r) => r.id === requestId);
-    if (request) {
-      setReviewDialog({ open: true, swapRequest: request });
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      await api.acceptSwap(requestId);
+      // Update local state
+      setSwapRequests(prev => prev.map(req => 
+        req.id === requestId ? { ...req, status: "accepted" as const } : req
+      ));
+    } catch (err: any) {
+      setError("Failed to accept request");
+      console.error("Error accepting swap:", err);
     }
   };
 
-  const handleDeleteRequest = (requestId: string) => {
-    deleteSwapRequest(requestId);
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await api.rejectSwap(requestId);
+      // Update local state
+      setSwapRequests(prev => prev.map(req => 
+        req.id === requestId ? { ...req, status: "rejected" as const } : req
+      ));
+    } catch (err: any) {
+      setError("Failed to reject request");
+      console.error("Error rejecting swap:", err);
+    }
   };
 
-  const submitReview = () => {
+  const handleCompleteSwap = async (requestId: string) => {
+    try {
+      await api.completeSwap(requestId);
+      // Update local state
+      setSwapRequests(prev => prev.map(req => 
+        req.id === requestId ? { ...req, status: "completed" as const } : req
+      ));
+      const request = swapRequests.find((r) => r.id === requestId);
+      if (request) {
+        setReviewDialog({ open: true, swapRequest: request });
+      }
+    } catch (err: any) {
+      setError("Failed to complete swap");
+      console.error("Error completing swap:", err);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    try {
+      await api.cancelSwap(requestId);
+      // Remove from local state
+      setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err: any) {
+      setError("Failed to cancel request");
+      console.error("Error canceling swap:", err);
+    }
+  };
+
+  const submitReview = async () => {
     if (!reviewDialog.swapRequest) return;
 
     const isReviewerFromUser = reviewDialog.swapRequest.fromUserId === user.id;
@@ -111,16 +166,21 @@ const SwapRequests = () => {
       ? reviewDialog.swapRequest.toUserId
       : reviewDialog.swapRequest.fromUserId;
 
-    addReview({
-      swapRequestId: reviewDialog.swapRequest.id,
-      reviewerId: user.id,
-      revieweeId: revieweeId,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-    });
+    try {
+      await api.createRating({
+        swap: reviewDialog.swapRequest.id,
+        reviewee: revieweeId,
+        rating: reviewData.rating,
+        feedback: reviewData.comment,
+        isPublic: true,
+      });
 
-    setReviewDialog({ open: false, swapRequest: null });
-    setReviewData({ rating: 5, comment: "" });
+      setReviewDialog({ open: false, swapRequest: null });
+      setReviewData({ rating: 5, comment: "" });
+    } catch (err: any) {
+      setError("Failed to submit review");
+      console.error("Error submitting review:", err);
+    }
   };
 
   const getOtherUserName = (request: SwapRequest) => {
@@ -239,9 +299,37 @@ const SwapRequests = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-64">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+            <p className="text-gray-600">Loading swap requests...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <p className="text-red-700">{error}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-2"
+                size="sm"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div>
