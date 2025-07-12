@@ -9,7 +9,9 @@
     "format.fix": "prettier --write .",
     "typecheck": "tsc",
     "server": "cd backend && npm start",
-    "dev:server": "cd backend && npm run dev"
+    "dev:server": "cd backend && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "seed:clean": "cd backend && npm run seed:clean"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

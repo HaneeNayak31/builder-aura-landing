@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/users.js';
 import productRoutes from './routes/products.js';
+import { autoSeedDatabase } from './utils/autoSeed.js';
 
 // Load environment variables
 dotenv.config();
@@ -27,10 +28,16 @@ app.get('/api/health', (req, res) => {
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+    
+    // Auto-seed database if empty
+    await autoSeedDatabase();
+    
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
+      console.log(`📋 API Documentation: Check backend/README.md`);
     });
   })
   .catch((error) => {
