@@ -9,7 +9,9 @@
     "format.fix": "prettier --write .",
     "typecheck": "tsc",
     "server": "node server.js",
-    "dev:server": "nodemon server.js"
+    "dev:server": "nodemon server.js",
+    "seed": "node seed.js",
+    "test:db": "node test-db.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

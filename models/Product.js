@@ -32,7 +32,8 @@ const productSchema = new mongoose.Schema({
     type: String,
     validate: {
       validator: function(v) {
-        return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(v);
+        // Allow URLs with traditional image extensions or image service URLs like Unsplash
+        return /^https?:\/\/.+(\.(jpg|jpeg|png|gif|webp)(\?.*)?$|\/photo-\d+|\/uploads\/|\/images\/)/i.test(v);
       },
       message: 'Please provide a valid image URL'
     }
